@@ -1,0 +1,9 @@
+# enforce LF in repository and let Git handle conversions
+* text=auto eol=lf
+
+# ensure common text files use LF
+*.ts text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.prisma text eol=lf
+*.md text eol=lf
