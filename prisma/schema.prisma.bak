@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  RIDER
+  DRIVER
+}
+
+enum TripStatus {
+  REQUESTED
+  ACCEPTED
+  DRIVER_ARRIVING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id          String   @id @default(uuid())
+  phone       String   @unique
+  name        String
+  password    String
+  role        Role
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  driver      Driver?
+  tripsAsRider Trip[] @relation("RiderTrips")
+}
+
+model Driver {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  licenseNumber String   @unique
+  isAvailable   Boolean  @default(true)
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime @default(now())
+
+  vehicle       Vehicle?
+  trips         Trip[]   @relation("DriverTrips")
+}
+
+model Vehicle {
+  id           String  @id @default(uuid())
+  driverId     String  @unique
+  driver       Driver  @relation(fields: [driverId], references: [id])
+  plate        String  @unique
+  model        String
+  color        String
+}
+
+model Trip {
+  id              String     @id @default(uuid())
+  riderId         String
+  rider           User       @relation("RiderTrips", fields: [riderId], references: [id])
+  driverId        String?
+  driver          Driver?    @relation("DriverTrips", fields: [driverId], references: [id])
+  pickupLat       Float
+  pickupLng       Float
+  pickupAddress   String
+  destLat         Float
+  destLng         Float
+  destAddress     String
+  distance        Float
+  fare            Float
+  status          TripStatus @default(REQUESTED)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  payment         Payment?
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  tripId        String   @unique
+  trip          Trip     @relation(fields: [tripId], references: [id])
+  amount        Float
+  phone         String
+  mpesaCode     String?
+  paid          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
