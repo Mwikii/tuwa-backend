@@ -6,6 +6,8 @@ import {
   getNearbyDrivers,
   saveSearchHistory,
   getSearchHistory,
+  getSavedPlaces,
+  savePlaces,
 } from '../controllers/location.controller';
 
 const router = Router();
@@ -15,5 +17,7 @@ router.post('/fare-estimate', protect, riderOnly, getFareEstimate);
 router.post('/nearby-drivers', protect, riderOnly, getNearbyDrivers);
 router.post('/history', protect, riderOnly, saveSearchHistory);
 router.get('/history', protect, riderOnly, getSearchHistory);
+router.get('/saved-places', protect, getSavedPlaces);
+router.post('/saved-places', protect, savePlaces);
 
 export default router;

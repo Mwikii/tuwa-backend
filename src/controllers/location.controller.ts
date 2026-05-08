@@ -121,3 +121,30 @@ export const getSearchHistory = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+export const getSavedPlaces = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const places = await prisma.savedPlace.findMany({ where: { userId } });
+    res.json({ places });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const savePlaces = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { type, address, lat, lng } = req.body;
+
+    const place = await prisma.savedPlace.upsert({
+      where: { userId_type: { userId: userId!, type } },
+      update: { address, lat, lng },
+      create: { userId: userId!, type, address, lat, lng },
+    });
+
+    res.json({ place });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};

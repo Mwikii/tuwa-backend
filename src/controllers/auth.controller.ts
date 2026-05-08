@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../utils/prisma';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export const registerRider = async (req: Request, res: Response) => {
   try {
@@ -107,5 +108,31 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { name, email, photoUrl } = req.body;
 
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: name || undefined,
+        email: email || undefined,
+        photoUrl: photoUrl || undefined,
+      },
+    });
 
+    res.json({
+      user: {
+        id: updated.id,
+        name: updated.name,
+        phone: updated.phone,
+        email: updated.email,
+        photoUrl: updated.photoUrl,
+        role: updated.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
