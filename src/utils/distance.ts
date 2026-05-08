@@ -22,17 +22,74 @@ export const haversineDistance = (
 };
 
 export const calculateFare = (distanceKm: number) => {
-  const BASE_FARE = 100;
-  const PER_KM = 50;
+  const dist = Math.round(distanceKm * 10) / 10;
 
-  const exact = BASE_FARE + distanceKm * PER_KM;
-  const low = Math.round(exact * 0.9);
-  const high = Math.round(exact * 1.1);
+  const tiers = [
+    {
+      type: 'BODA',
+      label: 'Boda',
+      icon: '🏍️',
+      available: true,
+      base: 80,
+      perKm: 25,
+      marketBase: 120,
+      marketPerKm: 40,
+      etaMinutes: Math.round(dist / 0.4),
+    },
+    {
+      type: 'CAR',
+      label: 'Economy',
+      icon: '🚗',
+      available: true,
+      base: 220,
+      perKm: 50,
+      marketBase: 300,
+      marketPerKm: 80,
+      etaMinutes: Math.round(dist / 0.5),
+    },
+    {
+      type: 'COMFORT',
+      label: 'Comfort',
+      icon: '🚙',
+      available: false,
+      base: 300,
+      perKm: 70,
+      marketBase: 400,
+      marketPerKm: 100,
+      etaMinutes: Math.round(dist / 0.5),
+    },
+    {
+      type: 'XL',
+      label: 'XL',
+      icon: '🚐',
+      available: false,
+      base: 350,
+      perKm: 80,
+      marketBase: 500,
+      marketPerKm: 120,
+      etaMinutes: Math.round(dist / 0.45),
+    },
+  ];
 
   return {
-    exact: Math.round(exact),
-    low,
-    high,
-    distanceKm: Math.round(distanceKm * 10) / 10,
+    distanceKm: dist,
+    tiers: tiers.map((tier) => {
+      const exact = Math.round(tier.base + dist * tier.perKm);
+      const marketExact = Math.round(tier.marketBase + dist * tier.marketPerKm);
+      const savings = marketExact - exact;
+
+      return {
+        type: tier.type,
+        label: tier.label,
+        icon: tier.icon,
+        available: tier.available,
+        exact,
+        low: Math.round(exact * 0.9),
+        high: Math.round(exact * 1.1),
+        marketPrice: marketExact,
+        savings,
+        etaMinutes: tier.etaMinutes,
+      };
+    }),
   };
 };

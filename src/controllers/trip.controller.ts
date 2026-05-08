@@ -6,11 +6,11 @@ import { io } from '../index';
 
 export const requestTrip = async (req: AuthRequest, res: Response) => {
   try {
-    const { pickupLat, pickupLng, pickupAddress, destLat, destLng, destAddress } = req.body;
+    const { pickupLat, pickupLng, pickupAddress, destLat, destLng, destAddress, vehicleType, fare } = req.body;
     const riderId = req.user?.userId;
 
-    const distance = haversineDistance(pickupLat, pickupLng, destLat, destLng);
-    const fare = calculateFare(distance);
+    const distanceResult = calculateFare(haversineDistance(pickupLat, pickupLng, destLat, destLng));
+    const distanceKm = distanceResult.distanceKm;
 
     const trip = await prisma.trip.create({
       data: {
@@ -21,10 +21,16 @@ export const requestTrip = async (req: AuthRequest, res: Response) => {
         destLat,
         destLng,
         destAddress,
-        distance: fare.distanceKm,
-        fare: fare.exact,
+        distance: distanceKm,
+        fare: fare,
         status: 'REQUESTED',
       },
+    });
+
+    await prisma.searchHistory.upsert({
+      where: { userId_address: { userId: riderId!, address: destAddress } },
+      update: { count: { increment: 1 }, updatedAt: new Date() },
+      create: { userId: riderId!, address: destAddress, lat: destLat, lng: destLng },
     });
 
     const RADIUS_KM = 5;
@@ -53,18 +59,18 @@ export const requestTrip = async (req: AuthRequest, res: Response) => {
         tripId: trip.id,
         pickupAddress,
         destAddress,
-        distance: fare.distanceKm,
-        fare: fare.exact,
-        fareRange: { low: fare.low, high: fare.high },
+        distance: distanceKm,
+        fare,
+        vehicleType,
       });
     });
 
     res.status(201).json({
       tripId: trip.id,
       status: trip.status,
-      fare: fare.exact,
-      fareRange: { low: fare.low, high: fare.high },
-      distance: fare.distanceKm,
+      fare,
+      vehicleType,
+      distance: distanceKm,
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -205,6 +211,30 @@ export const getTripDetails = async (req: AuthRequest, res: Response) => {
     }
 
     res.json(trip);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const getTripHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    const trips = await prisma.trip.findMany({
+      where: { riderId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        driver: {
+          include: {
+            user: { select: { name: true } },
+            vehicle: true,
+          },
+        },
+      },
+    });
+
+    res.json({ trips });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

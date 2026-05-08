@@ -48,12 +48,7 @@ export const getFareEstimate = async (req: AuthRequest, res: Response) => {
 
     res.json({
       distanceKm: fare.distanceKm,
-      estimatedFare: {
-        low: fare.low,
-        high: fare.high,
-        exact: fare.exact,
-        currency: 'KES',
-      },
+      tiers: fare.tiers,
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -89,6 +84,39 @@ export const getNearbyDrivers = async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ drivers: nearby, count: nearby.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const saveSearchHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const { address, lat, lng } = req.body;
+    const userId = req.user?.userId;
+
+    await prisma.searchHistory.upsert({
+      where: { userId_address: { userId: userId!, address } },
+      update: { count: { increment: 1 }, updatedAt: new Date() },
+      create: { userId: userId!, address, lat, lng },
+    });
+
+    res.json({ message: 'Saved' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const getSearchHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    const history = await prisma.searchHistory.findMany({
+      where: { userId },
+      orderBy: { count: 'desc' },
+      take: 5,
+    });
+
+    res.json({ history });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
