@@ -11,6 +11,7 @@ import locationRoutes from './routes/location.routes';
 import tripRoutes from './routes/trip.routes';
 import paymentRoutes from './routes/payment.routes';
 import otpRoutes from './routes/otp.routes';
+import driverRoutes from './routes/driver.routes';
 
 const app = express();
 const httpServer = createServer(app);
@@ -34,6 +35,7 @@ app.use('/api/location', locationRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/otp', otpRoutes);
+app.use('/api/driver', driverRoutes);
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);

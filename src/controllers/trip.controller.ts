@@ -239,3 +239,50 @@ export const getTripHistory = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+export const getDriverEarnings = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) {
+      res.status(404).json({ error: 'Driver not found' });
+      return;
+    }
+
+    const trips = await prisma.trip.findMany({
+      where: { driverId: driver.id, status: 'COMPLETED' },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        rider: { select: { name: true } },
+      },
+    });
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+
+    const today = trips
+      .filter((t) => new Date(t.createdAt) >= startOfDay)
+      .reduce((sum, t) => sum + t.fare, 0);
+
+    const week = trips
+      .filter((t) => new Date(t.createdAt) >= startOfWeek)
+      .reduce((sum, t) => sum + t.fare, 0);
+
+    const total = trips.reduce((sum, t) => sum + t.fare, 0);
+
+    res.json({
+      trips,
+      stats: {
+        today: Math.round(today),
+        week: Math.round(week),
+        total: Math.round(total),
+        trips: trips.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};

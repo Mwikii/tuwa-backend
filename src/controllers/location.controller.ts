@@ -148,3 +148,42 @@ export const savePlaces = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+export const getDriverStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) {
+      res.status(404).json({ error: 'Driver not found' });
+      return;
+    }
+    res.json({ isActive: driver.isActive, isAvailable: driver.isAvailable });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const updateDriverAvailability = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { isAvailable } = req.body;
+
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) {
+      res.status(404).json({ error: 'Driver not found' });
+      return;
+    }
+    if (!driver.isActive && isAvailable) {
+      res.status(403).json({ error: 'Pay daily fee first' });
+      return;
+    }
+
+    await prisma.driver.update({
+      where: { userId },
+      data: { isAvailable },
+    });
+
+    res.json({ isAvailable });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};

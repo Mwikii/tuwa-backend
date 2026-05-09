@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { getPhoneVariants, verifyOTP } from '../services/otp.service';
 
 export const registerRider = async (req: Request, res: Response) => {
   try {
@@ -84,7 +85,9 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { phone, password } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { phone } });
+    const user = await prisma.user.findFirst({
+      where: { phone: { in: getPhoneVariants(phone) } },
+    });
     if (!user) {
       res.status(400).json({ error: 'Invalid credentials' });
       return;
@@ -136,3 +139,39 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { phone, otp, newPassword } = req.body;
+
+    if (!phone || !otp || !newPassword) {
+      res.status(400).json({ error: 'Phone, OTP, and new password are required' });
+      return;
+    }
+
+    const valid = await verifyOTP(phone, otp);
+    if (!valid) {
+      res.status(400).json({ error: 'Invalid or expired OTP' });
+      return;
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { phone: { in: getPhoneVariants(phone) } },
+    });
+    if (!user) {
+      res.status(404).json({ error: 'Account not found' });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+

@@ -21,9 +21,15 @@ export const requestOTP = async (req: Request, res: Response) => {
 
 export const verifyAndRegister = async (req: Request, res: Response) => {
   try {
-    const { name, phone, email, password, otp } = req.body;
+    const { name, phone, email, password, otp, isDriver, licenseNumber, plate, model, color } = req.body;
     const formattedPhone = formatPhoneForSMS(phone);
     const phoneVariants = getPhoneVariants(phone);
+
+    const valid = await verifyOTP(phone, otp);
+    if (!valid) {
+      res.status(400).json({ error: 'Invalid or expired OTP' });
+      return;
+    }
 
     const existing = await prisma.user.findFirst({
       where: {
@@ -38,22 +44,32 @@ export const verifyAndRegister = async (req: Request, res: Response) => {
       return;
     }
 
-    const valid = await verifyOTP(phone, otp);
-    if (!valid) {
-      res.status(400).json({ error: 'Invalid or expired OTP' });
-      return;
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
-      data: {
-        name,
-        phone: formattedPhone,
-        email: email || null,
-        password: hashedPassword,
-        role: 'RIDER',
-      },
+      data: isDriver
+        ? {
+            name,
+            phone: formattedPhone,
+            email: email || null,
+            password: hashedPassword,
+            role: 'DRIVER',
+            driver: {
+              create: {
+                licenseNumber,
+                vehicle: {
+                  create: { plate, model, color },
+                },
+              },
+            },
+          }
+        : {
+            name,
+            phone: formattedPhone,
+            email: email || null,
+            password: hashedPassword,
+            role: 'RIDER',
+          },
     });
 
     const token = jwt.sign(
@@ -64,7 +80,14 @@ export const verifyAndRegister = async (req: Request, res: Response) => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, phone: user.phone, role: user.role },
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email ?? undefined,
+        photoUrl: user.photoUrl ?? undefined,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error('Verify/register error:', error);
